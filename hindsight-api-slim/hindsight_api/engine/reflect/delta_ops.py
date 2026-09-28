@@ -438,6 +438,22 @@ def _unreachable_correction_prompt(
     return "\n".join(lines)
 
 
+def _as_message_text(content: Any) -> str:
+    """A reply as chat-message text, for quoting it back on the retry.
+
+    With ``skip_validation`` the provider returns the parsed JSON -- a dict --
+    rather than the raw string, and a dict is not valid message content: the
+    OpenAI chat format requires a string or a list of typed parts, and
+    OpenAI-compatible servers reject the request outright, so the retry fails
+    before the model ever sees the correction.
+    """
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    return json.dumps(content, ensure_ascii=False)
+
+
 async def request_delta_operations(
     llm: ConfiguredLLMProvider,
     *,
@@ -504,7 +520,7 @@ async def request_delta_operations(
         correction = _unreachable_correction_prompt(unreachable, document, any_applied=bool(outcome.applied))
     retry_messages = [
         *messages,
-        {"role": "assistant", "content": first.content or ""},
+        {"role": "assistant", "content": _as_message_text(first.content)},
         {"role": "user", "content": correction},
     ]
     second = await llm.call(messages=retry_messages, scope=scope, **call_kwargs)
