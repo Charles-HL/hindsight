@@ -441,17 +441,27 @@ def _unreachable_correction_prompt(
 def _as_message_text(content: Any) -> str:
     """A reply as chat-message text, for quoting it back on the retry.
 
-    With ``skip_validation`` the provider returns the parsed JSON -- a dict --
-    rather than the raw string, and a dict is not valid message content: the
-    OpenAI chat format requires a string or a list of typed parts, and
-    OpenAI-compatible servers reject the request outright, so the retry fails
-    before the model ever sees the correction.
+    A structured call does not always hand back the raw string: with
+    ``skip_validation`` the provider returns the parsed JSON (a dict), and
+    without it a validated Pydantic model. Neither is valid message content --
+    the OpenAI chat format requires a string or a list of typed parts, and
+    OpenAI-compatible servers (and the Gemini client) reject the request
+    outright, so the retry would fail before the model ever sees the correction.
+
+    Serialising must itself never fail: this runs on the path that exists to
+    recover a bad reply, so an unserialisable value falls back to ``str()``
+    rather than raising.
     """
     if content is None:
         return ""
     if isinstance(content, str):
         return content
-    return json.dumps(content, ensure_ascii=False)
+    if isinstance(content, BaseModel):
+        return content.model_dump_json()
+    try:
+        return json.dumps(content, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(content)
 
 
 async def request_delta_operations(

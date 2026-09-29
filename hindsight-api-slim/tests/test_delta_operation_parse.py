@@ -250,7 +250,7 @@ def test_parse_delta_operation_list_top_level_array_all_invalid_raises():
 class _ScriptedLLM:
     """An LLM that returns canned replies in order and records what it was sent."""
 
-    def __init__(self, *replies: str | dict) -> None:
+    def __init__(self, *replies: str | dict | DeltaOperationList) -> None:
         self._replies = list(replies)
         self.calls: list[list[dict]] = []
 
@@ -308,6 +308,20 @@ async def test_the_retry_quotes_a_parsed_reply_back_as_text():
     assert assistant_turn["role"] == "assistant"
     assert isinstance(assistant_turn["content"], str)
     assert json.loads(assistant_turn["content"]) == json.loads(_STRAY)
+
+
+async def test_the_retry_quotes_a_validated_model_reply_back_as_text():
+    """Without skip_validation the provider returns a validated Pydantic model."""
+    # Parses fine but names a section the document does not have, so it is refused.
+    unreachable = DeltaOperationList.model_validate(
+        {"operations": [{"op": "append_block", "section_id": "nowhere", "text": "x"}]}
+    )
+    llm = _ScriptedLLM(unreachable, _GOOD)
+    await request_delta_operations(llm, system_prompt="sys", user_prompt="usr", scope="test", document=_DOC)
+
+    assistant_turn = llm.calls[1][2]
+    assert isinstance(assistant_turn["content"], str)
+    assert json.loads(assistant_turn["content"])["operations"][0]["section_id"] == "nowhere"
 
 
 async def test_request_delta_operations_gives_up_after_one_retry():
