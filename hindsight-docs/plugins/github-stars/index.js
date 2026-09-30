@@ -18,6 +18,12 @@
 const FALLBACK = 10000;
 const REPO = 'vectorize-io/hindsight';
 
+/* A build must not be able to hang on this. Without a deadline a slow or
+   black-holed api.github.com stalls `docusaurus build` indefinitely, which in CI
+   means a job that burns its whole timeout for a decoration. Five seconds is far
+   more than the call needs and the fallback covers the rest. */
+const TIMEOUT_MS = 5000;
+
 module.exports = function githubStarsPlugin() {
   return {
     name: 'github-stars',
@@ -25,6 +31,7 @@ module.exports = function githubStarsPlugin() {
     async loadContent() {
       try {
         const res = await fetch(`https://api.github.com/repos/${REPO}`, {
+          signal: AbortSignal.timeout(TIMEOUT_MS),
           headers: {
             Accept: 'application/vnd.github+json',
             // GITHUB_TOKEN lifts the 60/hr unauthenticated limit on shared CI IPs.

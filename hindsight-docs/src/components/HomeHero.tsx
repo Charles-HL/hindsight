@@ -1,4 +1,4 @@
-import React, {type ReactNode} from 'react';
+import React, {type ReactNode, useEffect, useRef} from 'react';
 import Link from '@docusaurus/Link';
 import clsx from 'clsx';
 import {LuArrowRight, LuArrowUpRight, LuStar} from 'react-icons/lu';
@@ -37,6 +37,20 @@ const REPO = 'https://github.com/vectorize-io/hindsight';
  */
 export default function HomeHero(): ReactNode {
   const stars = useGitHubStars();
+  const video = useRef<HTMLVideoElement>(null);
+
+  /* The clip autoplays in the markup so it still works before (or without) JS,
+     and anyone who has asked their OS to stop animation gets it stopped on the
+     first frame instead. Deciding in an effect rather than rendering `autoPlay`
+     conditionally keeps the no-JS path intact — the alternative shows everyone
+     else a still image until hydration. */
+  useEffect(() => {
+    const el = video.current;
+    if (el && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el.pause();
+      el.currentTime = 0;
+    }
+  }, []);
 
   return (
     <div className={clsx('hs-hero-band', styles.hero)}>
@@ -76,8 +90,10 @@ export default function HomeHero(): ReactNode {
       <div className={styles.shot}>
         <ZoomableMedia>
           <video
+            ref={video}
             src="/img/memory-graph.mp4"
             poster="/img/memory-graph.jpg"
+            aria-label="The Hindsight control plane showing a memory bank as a force-directed graph: 172 memories and 5,364 links between them, coloured by semantic, temporal, entity and causal relationships."
             autoPlay
             loop
             muted

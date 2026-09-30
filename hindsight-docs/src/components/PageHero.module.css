@@ -1,6 +1,6 @@
 /* Full-bleed out of the page column. These pages have no doc sidebar, so the
-   band spans the viewport. The band's own look — background, grid, white
-   headings — is the shared `hs-hero-band` class in custom.css. */
+   band spans the viewport. The band's own look — surface, ink tokens, heading
+   colour — is the shared `hs-hero-band` class in custom.css. */
 .hero {
   width: 100vw;
   left: 50%;
