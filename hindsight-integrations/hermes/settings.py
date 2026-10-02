@@ -109,6 +109,19 @@ def _normalize_min_scores(value: Any) -> dict[str, float] | None:
     return floors or None
 
 
+def _clears_min_scores(result: Any, floors: dict[str, float]) -> bool:
+    """Whether a recall result's reported scores all clear *floors* (each inclusive, ``>=``).
+
+    The server only guarantees ``reranker`` and ``final``: a ``semantic`` or ``keyword`` floor
+    prunes its own retrieval arm and a result surfaced by another arm still comes back. Checking
+    the scores each result reports makes every floor an abstention floor. A score the result does
+    not report (``None``, or no ``scores`` at all) passes, as a stage that did not surface it."""
+    scores = getattr(result, "scores", None)
+    if scores is None:
+        return True
+    return all((value := getattr(scores, name, None)) is None or value >= floor for name, floor in floors.items())
+
+
 def _normalize_observation_scopes(value: Any) -> Any:
     """Normalize observation_scopes to a keyword string, ``list[list[str]]`` (one inner
     list per consolidation pass), or ``None`` (Hindsight's ``combined`` default).

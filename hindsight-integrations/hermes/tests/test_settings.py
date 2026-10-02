@@ -1,6 +1,9 @@
 """Pure config normalizers — no Hermes, no network."""
 
+import types
+
 from hindsight_hermes.settings import (
+    _clears_min_scores,
     _normalize_min_scores,
     _normalize_observation_scopes,
     _normalize_retain_tags,
@@ -53,3 +56,22 @@ def test_min_scores_drops_invalid_floors_instead_of_sending_them():
     # One bad entry must not discard the good one beside it.
     assert _normalize_min_scores({"reranker": "high", "semantic": 0.6, "keyword": True}) == {"semantic": 0.6}
     assert _normalize_min_scores({"reranker": float("nan")}) is None
+
+
+def _result(**scores):
+    return types.SimpleNamespace(scores=types.SimpleNamespace(**scores))
+
+
+def test_clears_min_scores_is_inclusive_and_checks_every_floor():
+    floors = {"semantic": 0.5, "reranker": 0.1}
+    assert _clears_min_scores(_result(semantic=0.5, reranker=0.1), floors)
+    assert not _clears_min_scores(_result(semantic=0.49, reranker=0.9), floors)
+    assert not _clears_min_scores(_result(semantic=0.9, reranker=0.09), floors)
+
+
+def test_clears_min_scores_passes_a_stage_the_result_does_not_report():
+    # Surfaced by another retrieval arm: no semantic score, so a semantic floor cannot reject it.
+    assert _clears_min_scores(_result(semantic=None, reranker=0.5), {"semantic": 0.9})
+    assert _clears_min_scores(_result(reranker=0.5), {"semantic": 0.9})
+    assert _clears_min_scores(types.SimpleNamespace(scores=None), {"semantic": 0.9})
+    assert _clears_min_scores(types.SimpleNamespace(), {"semantic": 0.9})
