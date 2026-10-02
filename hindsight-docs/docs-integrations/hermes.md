@@ -260,10 +260,11 @@ Config file: `~/.hermes/hindsight/config.json`
 > `reranker` score separates the two cleanly — on a small bank relevant hits scored 0.7-0.97 and unrelated ones
 > 0.0-0.1 — so `"recall_min_scores": {"reranker": 0.25}` in `~/.hermes/hindsight/config.json` turns that noise
 > into an empty recall. The server only guarantees `reranker` and `final` floors; a `semantic` or `keyword` floor
-> prunes just its own retrieval arm there, so the plugin also checks every floor against the scores each result
-> reports (a score a result does not report passes). Check the scores on your own bank before tuning the floor:
-> with a multilingual embedding model, `{"semantic": 0.5}` separated relevant from unrelated queries better than
-> the reranker did. Unset by default, so nothing changes unless you opt in.
+> prunes just its own retrieval arm there, and a result found by another arm still comes back with a `null` score
+> for that stage. The plugin therefore also checks every floor against the scores each result reports, and rejects
+> a result that does not report the floored stage. Check the scores on your own bank before tuning a floor: with a
+> multilingual embedding model, `{"semantic": 0.5}` separated relevant from unrelated queries better than the
+> reranker did. Unset by default, so nothing changes unless you opt in.
 
 ### Retain
 

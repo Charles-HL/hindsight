@@ -69,9 +69,14 @@ def test_clears_min_scores_is_inclusive_and_checks_every_floor():
     assert not _clears_min_scores(_result(semantic=0.9, reranker=0.09), floors)
 
 
-def test_clears_min_scores_passes_a_stage_the_result_does_not_report():
-    # Surfaced by another retrieval arm: no semantic score, so a semantic floor cannot reject it.
-    assert _clears_min_scores(_result(semantic=None, reranker=0.5), {"semantic": 0.9})
-    assert _clears_min_scores(_result(reranker=0.5), {"semantic": 0.9})
+def test_clears_min_scores_rejects_a_result_that_does_not_report_the_floored_stage():
+    # Surfaced by another retrieval arm: no semantic score, so it cannot clear a semantic floor.
+    assert not _clears_min_scores(_result(semantic=None, reranker=0.5), {"semantic": 0.5})
+    assert not _clears_min_scores(_result(reranker=0.5), {"semantic": 0.5})
+    # ...but it is judged on the stages it does report.
+    assert _clears_min_scores(_result(semantic=None, reranker=0.5), {"reranker": 0.1})
+
+
+def test_clears_min_scores_keeps_a_result_with_no_scores_at_all():
     assert _clears_min_scores(types.SimpleNamespace(scores=None), {"semantic": 0.9})
     assert _clears_min_scores(types.SimpleNamespace(), {"semantic": 0.9})

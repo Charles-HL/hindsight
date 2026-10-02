@@ -110,16 +110,18 @@ def _normalize_min_scores(value: Any) -> dict[str, float] | None:
 
 
 def _clears_min_scores(result: Any, floors: dict[str, float]) -> bool:
-    """Whether a recall result's reported scores all clear *floors* (each inclusive, ``>=``).
+    """Whether a recall result reports every score named in *floors* and clears each (``>=``).
 
-    The server only guarantees ``reranker`` and ``final``: a ``semantic`` or ``keyword`` floor
-    prunes its own retrieval arm and a result surfaced by another arm still comes back. Checking
-    the scores each result reports makes every floor an abstention floor. A score the result does
-    not report (``None``, or no ``scores`` at all) passes, as a stage that did not surface it."""
+    Recall fuses four retrieval arms and returns a result surfaced by any of them, so the
+    ``semantic`` and ``keyword`` scores are ``None`` on a result the other arms found. The
+    server only guarantees ``reranker`` and ``final`` floors (a ``semantic`` floor prunes just
+    its own arm), so a result that does not report a stage named in a floor is rejected here:
+    that is what lets a ``semantic`` floor abstain on an off-topic query. A result carrying no
+    ``scores`` at all (a server that does not report them) is kept, there being nothing to judge it by."""
     scores = getattr(result, "scores", None)
     if scores is None:
         return True
-    return all((value := getattr(scores, name, None)) is None or value >= floor for name, floor in floors.items())
+    return all((value := getattr(scores, name, None)) is not None and value >= floor for name, floor in floors.items())
 
 
 def _normalize_observation_scopes(value: Any) -> Any:

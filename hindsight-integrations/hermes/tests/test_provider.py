@@ -100,18 +100,19 @@ def test_recall_with_an_empty_answer_stays_an_empty_block(provider):
 
 
 def test_recall_min_scores_is_enforced_on_each_result_the_server_returns(provider):
-    # The server prunes only the retrieval arm a `semantic` floor names, so a weak result can still
-    # come back; the plugin drops it so the floor really abstains.
+    # The server prunes only the retrieval arm a `semantic` floor names, so weak results (and ones
+    # another arm found, with no semantic score) can still come back; the plugin drops them so the
+    # floor really abstains.
     results = [("kept", {"semantic": 0.7}), ("weak", {"semantic": 0.3}), ("other arm", {"semantic": None})]
     instance, fake = provider({"recall_min_scores": {"semantic": 0.5}}, client=FakeClient(recall_texts=results))
     result = json.loads(instance.handle_tool_call("hindsight_recall", {"query": "q"}))
-    assert result["result"] == "1. kept\n2. other arm"
+    assert result["result"] == "1. kept"
     assert fake.recalls[0]["min_scores"] == {"semantic": 0.5}
     instance.shutdown()
 
 
 def test_recall_min_scores_drops_the_whole_block_when_nothing_clears_it(provider):
-    results = [("weak", {"semantic": 0.3}), ("weaker", {"semantic": 0.2})]
+    results = [("weak", {"semantic": 0.3}), ("other arm", {"semantic": None})]
     instance, _ = provider(
         {"recall_sync": True, "recall_min_scores": {"semantic": 0.5}}, client=FakeClient(recall_texts=results)
     )
