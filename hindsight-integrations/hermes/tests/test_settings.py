@@ -1,6 +1,7 @@
 """Pure config normalizers — no Hermes, no network."""
 
 from hindsight_hermes.settings import (
+    _normalize_min_scores,
     _normalize_observation_scopes,
     _normalize_retain_tags,
     _parse_int_setting,
@@ -35,3 +36,20 @@ def test_observation_scopes_normalization():
     assert _normalize_observation_scopes(["a", "b"]) == [["a", "b"]]
     assert _normalize_observation_scopes([["a"], ["b"]]) == [["a"], ["b"]]
     assert _normalize_observation_scopes("garbage") is None
+
+
+def test_min_scores_accepts_a_mapping_or_a_json_object():
+    assert _normalize_min_scores({"reranker": 0.25}) == {"reranker": 0.25}
+    assert _normalize_min_scores('{"reranker": 0.25, "semantic": 1}') == {"reranker": 0.25, "semantic": 1.0}
+    assert _normalize_min_scores(None) is None
+    assert _normalize_min_scores("") is None
+    assert _normalize_min_scores({}) is None
+
+
+def test_min_scores_drops_invalid_floors_instead_of_sending_them():
+    assert _normalize_min_scores("not json") is None
+    assert _normalize_min_scores("[0.25]") is None  # a JSON value, but not an object
+    assert _normalize_min_scores(0.25) is None
+    # One bad entry must not discard the good one beside it.
+    assert _normalize_min_scores({"reranker": "high", "semantic": 0.6, "keyword": True}) == {"semantic": 0.6}
+    assert _normalize_min_scores({"reranker": float("nan")}) is None

@@ -64,6 +64,41 @@ def test_recall_tool_queries_the_bank_and_formats_results(provider):
     instance.shutdown()
 
 
+def test_recall_sends_no_score_floor_by_default(provider):
+    instance, fake = provider({}, client=FakeClient(recall_texts=["fact one"]))
+    instance.handle_tool_call("hindsight_recall", {"query": "who am I?"})
+    assert "min_scores" not in fake.recalls[0]
+    instance.shutdown()
+
+
+def test_recall_min_scores_reaches_the_tool_and_the_prefetch(provider):
+    instance, fake = provider(
+        {"recall_sync": True, "recall_min_scores": {"reranker": 0.25}}, client=FakeClient(recall_texts=["fact one"])
+    )
+    instance.handle_tool_call("hindsight_recall", {"query": "who am I?"})
+    instance.prefetch("what do you know?")
+    assert [call["min_scores"] for call in fake.recalls] == [{"reranker": 0.25}] * 2
+    instance.shutdown()
+
+
+def test_recall_min_scores_accepts_the_json_string_the_setup_wizard_writes(provider):
+    instance, fake = provider({"recall_min_scores": '{"reranker": 0.25}'}, client=FakeClient(recall_texts=["x"]))
+    instance.handle_tool_call("hindsight_recall", {"query": "q"})
+    assert fake.recalls[0]["min_scores"] == {"reranker": 0.25}
+    instance.shutdown()
+
+
+def test_recall_with_every_memory_under_the_floor_injects_nothing(provider):
+    # The server drops what falls under the floor; an empty answer must stay an empty block.
+    instance, fake = provider({"recall_sync": True, "recall_min_scores": {"reranker": 0.9}}, client=FakeClient())
+    assert instance.prefetch("something off topic") == ""
+    assert fake.recalls[0]["min_scores"] == {"reranker": 0.9}
+    assert json.loads(instance.handle_tool_call("hindsight_recall", {"query": "q"}))["result"] == (
+        "No relevant memories found."
+    )
+    instance.shutdown()
+
+
 def test_reflect_tool_uses_reflect(provider):
     instance, fake = provider({}, client=FakeClient(reflect_text="You are Ada."))
     result = json.loads(instance.handle_tool_call("hindsight_reflect", {"query": "who am I?"}))
