@@ -1303,8 +1303,7 @@ class HindsightMemoryProvider(MemoryProvider):
             raise
         results = resp.results or []
         if self._recall_min_scores:
-            floors = self._recall_min_scores
-            results = [r for r in results if _clears_min_scores(r, floors)]
+            results = [r for r in results if _clears_min_scores(r, self._recall_min_scores)]
         return results
 
     def _reflect(self, query: str) -> str | None:
